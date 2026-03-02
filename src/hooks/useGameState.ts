@@ -1,8 +1,16 @@
 import { useState, useCallback, useMemo, useEffect } from "react";
 import { challenges as initialChallenges, Challenge } from "@/data/challenges";
-import { fetchChallengesFromSupabase, upsertLeaderboardEntry, getLeaderboardUsername } from "@/lib/api";
+import {
+  fetchChallengesFromSupabase,
+  fetchCompetitionConfig,
+  setCompetitionStartTime,
+  clearCompetitionStartTime,
+  upsertLeaderboardEntry,
+  getLeaderboardUsername,
+} from "@/lib/api";
 
-export const COMPETITION_DURATION = 60 * 60 * 1000; // 1 hour
+export const COMPETITION_DURATION = 60 * 60 * 1000; // 1 hour (fallback when config not available)
+const SHARED_TIMER_POLL_MS = 30_000; // sync start time from server every 30s
 
 function mergeChallengesWithSaved(
   source: Challenge[],
@@ -31,7 +39,9 @@ export function useGameState() {
     return saved ? Number(saved) : null;
   });
 
-  const endTime = startTime ? startTime + COMPETITION_DURATION : null;
+  const [durationMs, setDurationMs] = useState(COMPETITION_DURATION);
+
+  const endTime = startTime ? startTime + durationMs : null;
 
   const [challengeList, setChallengeList] = useState<Challenge[]>(() => {
     const saved = localStorage.getItem("ctf_challenges");
@@ -50,6 +60,27 @@ export function useGameState() {
   });
 
   const [challengesLoadedFromSupabase, setChallengesLoadedFromSupabase] = useState(false);
+
+  // Sync start time (and duration) from shared config so all clients see the same timer
+  useEffect(() => {
+    let cancelled = false;
+    const apply = (config: Awaited<ReturnType<typeof fetchCompetitionConfig>>) => {
+      if (cancelled) return;
+      const d = (config.duration_seconds || 3600) * 1000;
+      setDurationMs(d);
+      if (config.started_at) {
+        const serverStart = new Date(config.started_at).getTime();
+        setStartTime(serverStart);
+        localStorage.setItem("ctf_start_time", String(serverStart));
+      }
+    };
+    fetchCompetitionConfig().then(apply);
+    const interval = setInterval(() => fetchCompetitionConfig().then(apply), SHARED_TIMER_POLL_MS);
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
+  }, []);
 
   useEffect(() => {
     if (challengesLoadedFromSupabase) return;
@@ -72,10 +103,17 @@ export function useGameState() {
     localStorage.setItem("ctf_challenges", JSON.stringify(list));
   };
 
-  const startTimer = useCallback(() => {
+  const startTimer = useCallback(async () => {
+    const res = await setCompetitionStartTime();
     const now = Date.now();
-    localStorage.setItem("ctf_start_time", String(now));
-    setStartTime(now);
+    if (res.ok) {
+      localStorage.setItem("ctf_start_time", String(now));
+      setStartTime(now);
+    } else {
+      // Fallback: still set local so admin sees timer when Supabase is unavailable
+      localStorage.setItem("ctf_start_time", String(now));
+      setStartTime(now);
+    }
   }, []);
 
   const getElapsed = useCallback(() => {
@@ -101,11 +139,11 @@ export function useGameState() {
       }
 
       // 2. Add Time Left Bonus (1 point per second remaining)
-      const timeLeftSeconds = Math.max(0, Math.floor((COMPETITION_DURATION - elapsed) / 1000));
+      const timeLeftSeconds = Math.max(0, Math.floor((durationMs - elapsed) / 1000));
 
       return earnedPoints + timeLeftSeconds;
     },
-    [startTime]
+    [startTime, durationMs]
   );
 
   const getAvailableHints = useCallback(
@@ -138,7 +176,7 @@ export function useGameState() {
             let earned = base;
             if (elapsed >= c.hintTimes[1]) earned = Math.floor(base * 0.5);
             else if (elapsed >= c.hintTimes[0]) earned = Math.floor(base * 0.75);
-            const timeLeft = Math.max(0, Math.floor((COMPETITION_DURATION - elapsed) / 1000));
+            const timeLeft = Math.max(0, Math.floor((durationMs - elapsed) / 1000));
             return sum + earned + timeLeft;
           }, 0);
         const solvedCount = updated.filter((c) => c.solved).length;
@@ -155,7 +193,7 @@ export function useGameState() {
       }
       return false;
     },
-    [challengeList, startTime]
+    [challengeList, startTime, durationMs]
   );
 
   const score = useMemo(
@@ -166,7 +204,8 @@ export function useGameState() {
     [challengeList, getCurrentPoints]
   );
 
-  const resetGame = useCallback(() => {
+  const resetGame = useCallback(async () => {
+    await clearCompetitionStartTime();
     localStorage.removeItem("ctf_start_time");
     localStorage.removeItem("ctf_challenges");
     window.location.reload();

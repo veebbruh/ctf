@@ -168,6 +168,70 @@ export async function fetchLeaderboardFromSupabase(): Promise<LeaderboardEntry[]
   }
 }
 
+/** Competition config from Supabase (for shared timer). */
+export interface CompetitionConfig {
+  started_at: string | null;
+  duration_seconds: number;
+}
+
+const COMPETITION_CONFIG_KEY = "default";
+
+/** Fetch competition config (start time + duration). Returns null started_at and 3600 duration on error or when Supabase is not configured. */
+export async function fetchCompetitionConfig(): Promise<CompetitionConfig> {
+  try {
+    const client = getSupabase();
+    const { data, error } = await client
+      .from("competition_config")
+      .select("started_at, duration_seconds")
+      .eq("key", COMPETITION_CONFIG_KEY)
+      .maybeSingle();
+
+    if (error || !data) {
+      return { started_at: null, duration_seconds: 3600 };
+    }
+    return {
+      started_at: (data as { started_at: string | null }).started_at ?? null,
+      duration_seconds: Number((data as { duration_seconds: number }).duration_seconds) || 3600,
+    };
+  } catch {
+    return { started_at: null, duration_seconds: 3600 };
+  }
+}
+
+/** Set competition start time to now (admin starts timer). */
+export async function setCompetitionStartTime(): Promise<{ ok: boolean; error?: string }> {
+  try {
+    const client = getSupabase();
+    const { error } = await client
+      .from("competition_config")
+      .update({ started_at: new Date().toISOString(), updated_at: new Date().toISOString() })
+      .eq("key", COMPETITION_CONFIG_KEY);
+
+    if (error) return { ok: false, error: error.message };
+    return { ok: true };
+  } catch (e) {
+    const message = e instanceof Error ? e.message : String(e);
+    return { ok: false, error: message };
+  }
+}
+
+/** Clear competition start time (admin reset). */
+export async function clearCompetitionStartTime(): Promise<{ ok: boolean; error?: string }> {
+  try {
+    const client = getSupabase();
+    const { error } = await client
+      .from("competition_config")
+      .update({ started_at: null, updated_at: new Date().toISOString() })
+      .eq("key", COMPETITION_CONFIG_KEY);
+
+    if (error) return { ok: false, error: error.message };
+    return { ok: true };
+  } catch (e) {
+    const message = e instanceof Error ? e.message : String(e);
+    return { ok: false, error: message };
+  }
+}
+
 /** Upsert current player's score into Supabase leaderboard. */
 export async function upsertLeaderboardEntry(params: {
   username: string;

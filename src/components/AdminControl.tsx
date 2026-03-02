@@ -86,13 +86,13 @@ export const AdminControl = () => {
 
             <div className="flex gap-4">
                 <button
-                    onClick={() => {
+                    onClick={async () => {
                         if (!isStarted) {
-                            startTimer();
-                            toast.success("Competition started!");
+                            await startTimer();
+                            toast.success("Competition started! Timer is live for everyone.");
                         } else {
                             if (confirm("Reset clock and clear all data? This action is irreversible.")) {
-                                resetGame();
+                                await resetGame();
                                 toast.success("System Reset");
                             }
                         }
