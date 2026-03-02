@@ -12,7 +12,12 @@ export const AdminControl = () => {
 
     const handleLogin = (e: React.FormEvent) => {
         e.preventDefault();
-        if (username === "punya" && password === "mittal@123") {
+        const u = username.trim();
+        const p = password.trim();
+        const valid =
+            (u === "punya" && p === "mittal@123") ||
+            (u === "dumdum" && p === "dumdum123");
+        if (valid) {
             setIsAdmin(true);
             setShowLogin(false);
             toast.success("Admin access granted");

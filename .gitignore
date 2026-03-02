@@ -15,6 +15,9 @@ dist-ssr
 .env.*
 !.env.example
 
+# Generated team credentials (do not commit)
+scripts/output/
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

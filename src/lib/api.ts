@@ -2,6 +2,7 @@ import { getSupabase, testSupabaseConnection } from "@/lib/supabase";
 import type { Challenge } from "@/data/challenges";
 
 const PLAYER_ID_KEY = "ctf_player_id";
+const TEAM_USERNAME_KEY = "ctf_team_username";
 
 /** Get or create a persistent player id for this browser. */
 export function getPlayerId(): string {
@@ -11,6 +12,55 @@ export function getPlayerId(): string {
     localStorage.setItem(PLAYER_ID_KEY, id);
   }
   return id;
+}
+
+/** Get currently logged-in team username (from team_credentials), or null. */
+export function getCurrentTeam(): string | null {
+  return localStorage.getItem(TEAM_USERNAME_KEY);
+}
+
+/** Set current team after successful login. */
+export function setCurrentTeam(teamUsername: string): void {
+  localStorage.setItem(TEAM_USERNAME_KEY, teamUsername);
+}
+
+/** Clear team login (logout). */
+export function clearCurrentTeam(): void {
+  localStorage.removeItem(TEAM_USERNAME_KEY);
+}
+
+/** Identity used for leaderboard: team username if logged in, else browser player_id. */
+export function getLeaderboardPlayerId(): string {
+  return getCurrentTeam() ?? getPlayerId();
+}
+
+/** Display name for leaderboard: team name if logged in, else "You". */
+export function getLeaderboardUsername(): string {
+  return getCurrentTeam() ?? "You";
+}
+
+/** Verify team credentials against Supabase team_credentials. Returns team_username on success. */
+export async function verifyTeamLogin(
+  teamUsername: string,
+  password: string
+): Promise<{ ok: true; team_username: string } | { ok: false; error: string }> {
+  try {
+    const client = getSupabase();
+    const { data, error } = await client
+      .from("team_credentials")
+      .select("team_username, password")
+      .eq("team_username", teamUsername.trim())
+      .maybeSingle();
+
+    if (error) return { ok: false, error: error.message };
+    if (!data || data.password !== password.trim()) {
+      return { ok: false, error: "Invalid team name or password." };
+    }
+    return { ok: true, team_username: data.team_username };
+  } catch (e) {
+    const message = e instanceof Error ? e.message : String(e);
+    return { ok: false, error: message };
+  }
 }
 
 /** Test Supabase connection. Call on app init or settings. */
@@ -114,7 +164,7 @@ export async function upsertLeaderboardEntry(params: {
 }): Promise<{ ok: boolean; error?: string }> {
   try {
     const client = getSupabase();
-    const playerId = getPlayerId();
+    const playerId = getLeaderboardPlayerId();
     const row = {
       player_id: playerId,
       username: params.username,

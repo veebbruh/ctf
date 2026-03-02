@@ -20,9 +20,9 @@ values
 File: money_laundering_part1.pcap',
     100,
     'FLAG{D1RT_M0N3Y_H1DD3N_1N_PLA1N_S1GHT}',
-    '["Open the pcap file in Wireshark and look for common protocols like HTTP or FTP.", "Check for exported objects or data streams that might contain the flag."]'::jsonb,
-    '[300000, 600000]'::jsonb,
-    '/money_laundering_part1.pcap'
+    ARRAY['Open the pcap file in Wireshark and look for common protocols like HTTP or FTP.', 'Check for exported objects or data streams that might contain the flag.'],
+    ARRAY[300000, 600000],
+    '/ctf/1/money_laundering_part1.pcap'
   ),
   (
     'forensics-2',
@@ -33,9 +33,9 @@ File: money_laundering_part1.pcap',
 File: money_laundering_part2.pcap',
     200,
     'FLAG{G3TT1NG_TUFF3R_3HHEHEHE}',
-    '["Look for encrypted or unusual traffic. Sometimes data is hidden in the TCP/UDP payload in non-standard ways.", "Use ''follow stream'' on interesting looking connections to see the full data exchange."]'::jsonb,
-    '[1200000, 1500000]'::jsonb,
-    '/money_laundering_part2.pcap'
+    ARRAY['Look for encrypted or unusual traffic. Sometimes data is hidden in the TCP/UDP payload in non-standard ways.', 'Use ''follow stream'' on interesting looking connections to see the full data exchange.'],
+    ARRAY[1200000, 1500000],
+    '/ctf/2/money_laundering_part2.pcap'
   ),
   (
     'forensics-3',
@@ -46,9 +46,9 @@ File: money_laundering_part2.pcap',
 File: chal.jpg',
     150,
     'FLAG{C0L0R5_OR_WH4TTTTT}',
-    '["Check the image metadata using strings or exiftool.", "Try using steganography tools like steghide or zsteg if the metadata doesn''t yield results."]'::jsonb,
-    '[2100000, 2700000]'::jsonb,
-    '/chal.jpg'
+    ARRAY['Check the image metadata using strings or exiftool.', 'Try using steganography tools like steghide or zsteg if the metadata doesn''t yield results.'],
+    ARRAY[2100000, 2700000],
+    '/ctf/3/chal.jpg'
   )
 on conflict (id) do update set
   title = excluded.title,

@@ -6,7 +6,8 @@ import { useGameState } from "@/hooks/useGameState";
 import {
   fetchLeaderboardFromSupabase,
   upsertLeaderboardEntry,
-  getPlayerId,
+  getLeaderboardPlayerId,
+  getLeaderboardUsername,
 } from "@/lib/api";
 
 interface Player {
@@ -18,8 +19,9 @@ interface Player {
   isYou?: boolean;
 }
 
+const TOP_N = 10;
 const rankIcons = [Trophy, Medal, Award];
-const rankColors = ["text-warning", "text-muted-foreground", "text-warning/60"];
+const rankColors = ["text-amber-400", "text-slate-300", "text-amber-600"];
 
 const Leaderboard = () => {
   const { score, endTime, challenges, startTime, getElapsed } = useGameState();
@@ -27,7 +29,8 @@ const Leaderboard = () => {
   const [remoteEntries, setRemoteEntries] = useState<Player[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const playerId = getPlayerId();
+  const playerId = getLeaderboardPlayerId();
+  const displayName = getLeaderboardUsername();
   const solvedChallenges = challenges.filter((c) => c.solved);
   const lastSolveTime =
     solvedChallenges.length > 0
@@ -60,7 +63,7 @@ const Leaderboard = () => {
   useEffect(() => {
     if (score > 0) {
       upsertLeaderboardEntry({
-        username: "You",
+        username: displayName,
         score,
         solvedCount: solvedChallenges.length,
         lastSolveTime: lastSolveTime || null,
@@ -81,11 +84,11 @@ const Leaderboard = () => {
         }
       });
     }
-  }, [score, solvedChallenges.length, lastSolveTime, playerId]);
+  }, [score, solvedChallenges.length, lastSolveTime, playerId, displayName]);
 
   const you: Player = {
     rank: 0,
-    username: "You",
+    username: displayName,
     score,
     solved: solvedChallenges.length,
     lastSolveTime,
@@ -101,6 +104,11 @@ const Leaderboard = () => {
     })
     .map((p, i) => ({ ...p, rank: i + 1 }));
 
+  const top10 = allPlayers.slice(0, TOP_N);
+  const youEntry = allPlayers.find((p) => p.isYou ?? p.username === displayName);
+  const youRank = youEntry?.rank ?? null;
+  const showYourPositionBelow = youRank != null && youRank > TOP_N;
+
   return (
     <DashboardLayout score={score} endTime={endTime}>
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
@@ -110,35 +118,8 @@ const Leaderboard = () => {
 
         {allPlayers.length > 0 ? (
           <>
-            {/* Top 3 Podium */}
-            <div className="grid grid-cols-3 gap-4 mb-8 max-w-2xl mx-auto">
-              {[1, 0, 2].map((podiumIndex) => {
-                const player = allPlayers[podiumIndex];
-                if (!player) return null;
-                const Icon = rankIcons[player.rank - 1] || Trophy;
-                const isYou = player.username === "You";
-
-                return (
-                  <motion.div
-                    key={player.rank}
-                    initial={{ opacity: 0, y: 30 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: podiumIndex * 0.15 }}
-                    className={`glass-card p-5 text-center ${player.rank === 1 ? "neon-glow row-span-1 -mt-4" : player.rank === 2 ? "violet-glow" : ""
-                      } ${isYou ? "border-primary/50" : ""}`}
-                  >
-                    <Icon className={`w-8 h-8 mx-auto mb-2 ${rankColors[player.rank - 1] || "text-muted-foreground"}`} />
-                    <div className="font-mono text-2xl font-bold neon-text">#{player.rank}</div>
-                    <div className={`font-semibold mt-1 ${isYou ? "text-primary" : ""}`}>{player.username}</div>
-                    <div className="text-sm text-muted-foreground">{player.score} pts</div>
-                    <div className="text-xs text-muted-foreground">{player.solved} solved</div>
-                  </motion.div>
-                );
-              })}
-            </div>
-
-            {/* Full Table */}
-            <div className="glass-card overflow-hidden">
+            {/* Top 10 Table with gold / silver / bronze for 1st, 2nd, 3rd */}
+            <div className="glass-card overflow-hidden mb-8">
               <table className="w-full">
                 <thead>
                   <tr className="border-b border-border/30">
@@ -149,20 +130,26 @@ const Leaderboard = () => {
                   </tr>
                 </thead>
                 <tbody>
-                  {allPlayers.map((player, i) => {
-                    const isYou = player.isYou ?? player.username === "You";
+                  {top10.map((player, i) => {
+                    const isYou = player.isYou ?? player.username === displayName;
+                    const Icon = player.rank <= 3 ? rankIcons[player.rank - 1] : null;
+                    const iconColor = player.rank <= 3 ? rankColors[player.rank - 1] : "";
                     return (
                       <motion.tr
-                        key={player.username}
+                        key={`${player.rank}-${player.username}`}
                         initial={{ opacity: 0, x: -10 }}
                         animate={{ opacity: 1, x: 0 }}
                         transition={{ delay: i * 0.04 }}
-                        className={`border-b border-border/10 transition-colors ${isYou ? "bg-primary/5" : "hover:bg-muted/30"
-                          }`}
+                        className={`border-b border-border/10 transition-colors ${isYou ? "bg-primary/10 ring-1 ring-primary/30" : "hover:bg-muted/30"}`}
                       >
                         <td className="px-6 py-3">
-                          <span className={`font-mono font-bold ${player.rank <= 3 ? "neon-text" : "text-muted-foreground"}`}>
-                            #{player.rank}
+                          <span className="flex items-center gap-2">
+                            {Icon ? (
+                              <Icon className={`w-5 h-5 shrink-0 ${iconColor}`} aria-hidden />
+                            ) : null}
+                            <span className={`font-mono font-bold ${player.rank <= 3 ? iconColor : "text-muted-foreground"}`}>
+                              #{player.rank}
+                            </span>
                           </span>
                         </td>
                         <td className={`px-6 py-3 font-medium ${isYou ? "text-primary font-bold" : ""}`}>
@@ -176,6 +163,27 @@ const Leaderboard = () => {
                 </tbody>
               </table>
             </div>
+
+            {/* Your position (only when rank > 10) */}
+            {showYourPositionBelow && youEntry && (
+              <div className="glass-card overflow-hidden border-primary/40 ring-1 ring-primary/30">
+                <p className="px-6 py-2 text-[10px] font-bold tracking-widest uppercase text-primary/70 border-b border-border/20">
+                  Your position
+                </p>
+                <table className="w-full">
+                  <tbody>
+                    <tr className="bg-primary/10">
+                      <td className="px-6 py-3 font-mono font-bold text-primary">#{youEntry.rank}</td>
+                      <td className="px-6 py-3 font-medium text-primary font-bold">
+                        {youEntry.username} <span className="text-xs text-primary/60 ml-1">(you)</span>
+                      </td>
+                      <td className="px-6 py-3 text-right font-mono">{youEntry.score}</td>
+                      <td className="px-6 py-3 text-right font-mono text-primary/70">{youEntry.solved}</td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            )}
           </>
         ) : (
           <div className="glass-card p-20 text-center border-dashed border-primary/20">

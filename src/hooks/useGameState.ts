@@ -1,6 +1,6 @@
 import { useState, useCallback, useMemo, useEffect } from "react";
 import { challenges as initialChallenges, Challenge } from "@/data/challenges";
-import { fetchChallengesFromSupabase, upsertLeaderboardEntry } from "@/lib/api";
+import { fetchChallengesFromSupabase, upsertLeaderboardEntry, getLeaderboardUsername } from "@/lib/api";
 
 export const COMPETITION_DURATION = 60 * 60 * 1000; // 1 hour
 
@@ -145,7 +145,7 @@ export function useGameState() {
         const lastSolveTime = Math.max(...updated.filter((c) => c.solved).map((c) => c.solvedAt ?? 0));
 
         upsertLeaderboardEntry({
-          username: "You",
+          username: getLeaderboardUsername(),
           score: newScore,
           solvedCount,
           lastSolveTime: lastSolveTime || null,

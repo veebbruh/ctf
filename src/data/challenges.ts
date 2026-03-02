@@ -26,7 +26,7 @@ export const challenges: Challenge[] = [
     ],
     hintTimes: [5 * 60 * 1000, 10 * 60 * 1000], // 5m, 10m
     solved: false,
-    fileUrl: "/money_laundering_part1.pcap",
+    fileUrl: "https://drive.google.com/uc?export=download&id=1Tv9vx-glAUTRd-02hQCM8w6Y7NkW_Bzm",
   },
   {
     id: "forensics-2",
@@ -41,7 +41,7 @@ export const challenges: Challenge[] = [
     ],
     hintTimes: [20 * 60 * 1000, 25 * 60 * 1000], // 20m, 25m
     solved: false,
-    fileUrl: "/money_laundering_part2.pcap",
+    fileUrl: "https://drive.google.com/uc?export=download&id=1Y9yf34VoQC6ADLffxDRYdro32xVnRok8",
   },
   {
     id: "forensics-3",
@@ -56,7 +56,7 @@ export const challenges: Challenge[] = [
     ],
     hintTimes: [35 * 60 * 1000, 45 * 60 * 1000], // 35m, 45m
     solved: false,
-    fileUrl: "/chal.jpg",
+    fileUrl: "https://drive.google.com/uc?export=download&id=1BTozAfAQDBqW1J2IHqzwvMuGLT9SZEHr",
   },
 ];
 

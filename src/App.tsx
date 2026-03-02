@@ -8,6 +8,7 @@ import Index from "./pages/Index";
 import Dashboard from "./pages/Dashboard";
 import ChallengePage from "./pages/ChallengePage";
 import Leaderboard from "./pages/Leaderboard";
+import Profile from "./pages/Profile";
 import NotFound from "./pages/NotFound";
 import { testConnection } from "@/lib/api";
 
@@ -38,6 +39,7 @@ const App = () => (
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/challenge/:id" element={<ChallengePage />} />
           <Route path="/leaderboard" element={<Leaderboard />} />
+          <Route path="/profile" element={<Profile />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </BrowserRouter>
