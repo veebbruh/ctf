@@ -162,6 +162,9 @@ No profiles or teams table yet; add those when you have data to differentiate te
 - **Timer backend (so the clock starts for everyone when admin clicks “Initialize System Timer”):** Add these **server-side** variables (not prefixed with `VITE_`; they are used only by Netlify Functions):
   - `SUPABASE_URL` = same as your Supabase project URL (e.g. `https://xxxx.supabase.co`)  
   - `SUPABASE_SERVICE_ROLE_KEY` = your Supabase **service role** key (Dashboard → Project Settings → API). Keep this secret; it bypasses RLS.
+  - `TIMEZONEDB_API_KEY` = (optional) [TimeZoneDB](https://timezonedb.com/) API key. When set, the backend uses it to get authoritative UTC time for the competition start so everyone shares the same clock. If unset, the backend falls back to WorldTimeAPI (no key) then server time.
+
+- **Optional (client fallback):** `VITE_TIMEZONEDB_API_KEY` = same TimeZoneDB key, only if you want the client-side timer start fallback to use authoritative time when the backend is unavailable.
 
 If the timer backend env vars are missing, the admin can still start the timer from the client (Supabase anon update); the backend is preferred so the server sets the authoritative time and all participants see the same countdown.
 

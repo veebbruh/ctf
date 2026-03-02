@@ -200,6 +200,38 @@ export async function fetchCompetitionConfig(): Promise<CompetitionConfig> {
 
 const COMPETITION_ADMIN_FN = "/.netlify/functions/competition-admin";
 
+/** Get authoritative UTC "now" from timezone API so all clients share the same clock. Returns ISO string or null on failure. */
+export async function getAuthoritativeUtcIso(): Promise<string | null> {
+  const key = import.meta.env.VITE_TIMEZONEDB_API_KEY;
+  if (key) {
+    try {
+      const res = await fetch(
+        `https://api.timezonedb.com/v2.1/get-time-zone?key=${encodeURIComponent(key)}&format=json&by=zone&zone=Etc/UTC`
+      );
+      if (res.ok) {
+        const data = (await res.json()) as { status?: string; timestamp?: number; gmtOffset?: number };
+        if (data.status === "OK" && typeof data.timestamp === "number") {
+          const utcMs = (data.timestamp - (data.gmtOffset || 0)) * 1000;
+          return new Date(utcMs).toISOString();
+        }
+      }
+    } catch {
+      // fall through
+    }
+  }
+  try {
+    const res = await fetch("https://worldtimeapi.org/api/timezone/Etc/UTC");
+    if (res.ok) {
+      const data = (await res.json()) as { datetime?: string; unixtime?: number };
+      if (data.datetime) return data.datetime;
+      if (typeof data.unixtime === "number") return new Date(data.unixtime * 1000).toISOString();
+    }
+  } catch {
+    // ignore
+  }
+  return null;
+}
+
 /** Call backend to start timer (server sets authoritative time). Use this first; fall back to setCompetitionStartTime() if backend is unavailable. */
 export async function callCompetitionStartBackend(): Promise<{ ok: boolean; error?: string; started_at?: string }> {
   try {
@@ -234,13 +266,15 @@ export async function callCompetitionResetBackend(): Promise<{ ok: boolean; erro
   }
 }
 
-/** Set competition start time from client (fallback when backend is unavailable). */
+/** Set competition start time from client (fallback when backend is unavailable). Uses timezone API for authoritative UTC when available. */
 export async function setCompetitionStartTime(): Promise<{ ok: boolean; error?: string }> {
   try {
     const client = getSupabase();
+    const startedAt = (await getAuthoritativeUtcIso()) ?? new Date().toISOString();
+    const updatedAt = new Date().toISOString();
     const { error } = await client
       .from("competition_config")
-      .update({ started_at: new Date().toISOString(), updated_at: new Date().toISOString() })
+      .update({ started_at: startedAt, updated_at: updatedAt })
       .eq("key", COMPETITION_CONFIG_KEY);
 
     if (error) return { ok: false, error: error.message };

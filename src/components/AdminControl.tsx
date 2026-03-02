@@ -88,8 +88,12 @@ export const AdminControl = () => {
                 <button
                     onClick={async () => {
                         if (!isStarted) {
-                            await startTimer();
-                            toast.success("Competition started! Timer is live for everyone.");
+                            const res = await startTimer();
+                            if (res.ok) {
+                                toast.success("Competition started! Timer is live for everyone.");
+                            } else {
+                                toast.error("Could not start timer. " + (res.error || "Check Netlify env: SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY. In Supabase, run the migration that allows UPDATE on competition_config."));
+                            }
                         } else {
                             if (confirm("Reset clock and clear all data? This action is irreversible.")) {
                                 await resetGame();

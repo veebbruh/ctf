@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { ArrowLeft, Send, CheckCircle, XCircle, Lightbulb, Lock, AlertTriangle, Download } from "lucide-react";
+import { ArrowLeft, Send, CheckCircle, XCircle, Lightbulb, Lock, AlertTriangle, Download, RefreshCw } from "lucide-react";
 import DashboardLayout from "@/components/DashboardLayout";
 import { useGameState } from "@/hooks/useGameState";
 import AnimatedGrid from "@/components/AnimatedGrid";
@@ -9,12 +9,18 @@ import AnimatedGrid from "@/components/AnimatedGrid";
 const ChallengePage = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { challenges, score, endTime, isStarted, getCurrentPoints, getAvailableHints, submitFlag } = useGameState();
+  const { challenges, score, endTime, isStarted, getCurrentPoints, getAvailableHints, submitFlag, refetchCompetitionStart } = useGameState();
 
   const challenge = challenges.find((c) => c.id === id);
   const [flag, setFlag] = useState("");
   const [result, setResult] = useState<"correct" | "wrong" | null>(null);
   const [hints, setHints] = useState<string[]>([]);
+  const [checking, setChecking] = useState(false);
+
+  // Refetch competition start as soon as user lands on challenge so they get the timer if admin just started it
+  useEffect(() => {
+    refetchCompetitionStart();
+  }, [refetchCompetitionStart]);
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -175,8 +181,23 @@ const ChallengePage = () => {
                   </button>
 
                   {!isStarted && (
-                    <div className="p-4 border border-dashed border-primary/20 text-[10px] font-bold tracking-widest uppercase text-center text-primary/60">
-                      The organizer will start the timer from the dashboard. When it starts, the countdown will appear at the top and you can submit flags here.
+                    <div className="space-y-3">
+                      <p className="p-4 border border-dashed border-primary/20 text-[10px] font-bold tracking-widest uppercase text-center text-primary/60">
+                        The organizer will start the timer from the dashboard. When it starts, the countdown will appear at the top and you can submit flags here.
+                      </p>
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          setChecking(true);
+                          await refetchCompetitionStart();
+                          setChecking(false);
+                        }}
+                        disabled={checking}
+                        className="w-full flex items-center justify-center gap-2 py-3 border border-primary/30 text-[10px] font-bold tracking-widest uppercase text-primary/80 hover:bg-primary/10 hover:text-primary transition-colors disabled:opacity-50"
+                      >
+                        <RefreshCw className={`w-3.5 h-3.5 ${checking ? "animate-spin" : ""}`} />
+                        {checking ? "Checking…" : "Check for competition start"}
+                      </button>
                     </div>
                   )}
 

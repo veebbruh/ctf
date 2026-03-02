@@ -85,8 +85,11 @@ export function useGameState() {
       }
     };
 
-    // Initial fetch + periodic poll (fallback when Realtime is unavailable)
+    // Initial fetch + burst poll (every 2s for 20s) so others get start within seconds of admin starting
     fetchCompetitionConfig().then(apply);
+    const burstInterval = setInterval(() => fetchCompetitionConfig().then(apply), BURST_POLL_MS);
+    const stopBurst = setTimeout(() => clearInterval(burstInterval), BURST_DURATION_MS);
+    // Then normal poll every 5s
     const interval = setInterval(() => fetchCompetitionConfig().then(apply), SHARED_TIMER_POLL_MS);
 
     // Refetch when user returns to the tab so they see the timer immediately
@@ -153,18 +156,22 @@ export function useGameState() {
     localStorage.setItem("ctf_challenges", JSON.stringify(list));
   };
 
-  const startTimer = useCallback(async () => {
+  const startTimer = useCallback(async (): Promise<{ ok: boolean; error?: string }> => {
     // Prefer backend so server sets authoritative time and all clients get it reliably
     let res = await callCompetitionStartBackend();
     if (!res.ok) {
       res = await setCompetitionStartTime();
     }
+    if (!res.ok) {
+      return { ok: false, error: res.error };
+    }
     const now = Date.now();
-    const serverStartMs = res.ok && "started_at" in res && res.started_at
+    const serverStartMs = "started_at" in res && res.started_at
       ? new Date(res.started_at).getTime()
       : now;
     localStorage.setItem("ctf_start_time", String(serverStartMs));
     setStartTime(serverStartMs);
+    return { ok: true };
   }, []);
 
   const getElapsed = useCallback(() => {
@@ -265,6 +272,18 @@ export function useGameState() {
     window.location.reload();
   }, []);
 
+  /** Call to force a sync of competition start time from the server (e.g. when participant opens challenge page or clicks "Check") */
+  const refetchCompetitionStart = useCallback(async () => {
+    const config = await fetchCompetitionConfig();
+    const d = (config.duration_seconds || 3600) * 1000;
+    setDurationMs(d);
+    if (config.started_at) {
+      const serverStart = new Date(config.started_at).getTime();
+      setStartTime(serverStart);
+      localStorage.setItem("ctf_start_time", String(serverStart));
+    }
+  }, []);
+
   return {
     challenges: challengeList,
     startTime,
@@ -277,5 +296,6 @@ export function useGameState() {
     submitFlag,
     startTimer,
     resetGame,
+    refetchCompetitionStart,
   };
 }
