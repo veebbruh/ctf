@@ -95,11 +95,11 @@ interface ChallengeRow {
 }
 
 function mapRowToChallenge(row: ChallengeRow): Challenge {
-  const hints = Array.isArray(row.hints) && row.hints.length >= 2
-    ? [row.hints[0], row.hints[1]] as [string, string]
+  const hints: [string, string] = Array.isArray(row.hints) && row.hints.length >= 2
+    ? [row.hints[0], row.hints[1]]
     : ["", ""];
-  const hintTimes = Array.isArray(row.hint_times) && row.hint_times.length >= 2
-    ? [Number(row.hint_times[0]), Number(row.hint_times[1])] as [number, number]
+  const hintTimes: [number, number] = Array.isArray(row.hint_times) && row.hint_times.length >= 2
+    ? [Number(row.hint_times[0]), Number(row.hint_times[1])]
     : [15 * 60000, 30 * 60000];
   return {
     id: row.id,
@@ -198,7 +198,43 @@ export async function fetchCompetitionConfig(): Promise<CompetitionConfig> {
   }
 }
 
-/** Set competition start time to now (admin starts timer). */
+const COMPETITION_ADMIN_FN = "/.netlify/functions/competition-admin";
+
+/** Call backend to start timer (server sets authoritative time). Use this first; fall back to setCompetitionStartTime() if backend is unavailable. */
+export async function callCompetitionStartBackend(): Promise<{ ok: boolean; error?: string; started_at?: string }> {
+  try {
+    const res = await fetch(COMPETITION_ADMIN_FN, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "start" }),
+    });
+    const data = (await res.json()) as { ok: boolean; error?: string; started_at?: string };
+    if (!res.ok) return { ok: false, error: data.error ?? `HTTP ${res.status}` };
+    return { ok: data.ok, error: data.error, started_at: data.started_at };
+  } catch (e) {
+    const message = e instanceof Error ? e.message : String(e);
+    return { ok: false, error: message };
+  }
+}
+
+/** Call backend to reset timer. Use this first; fall back to clearCompetitionStartTime() if backend is unavailable. */
+export async function callCompetitionResetBackend(): Promise<{ ok: boolean; error?: string }> {
+  try {
+    const res = await fetch(COMPETITION_ADMIN_FN, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "reset" }),
+    });
+    const data = (await res.json()) as { ok: boolean; error?: string };
+    if (!res.ok) return { ok: false, error: data.error ?? `HTTP ${res.status}` };
+    return { ok: data.ok, error: data.error };
+  } catch (e) {
+    const message = e instanceof Error ? e.message : String(e);
+    return { ok: false, error: message };
+  }
+}
+
+/** Set competition start time from client (fallback when backend is unavailable). */
 export async function setCompetitionStartTime(): Promise<{ ok: boolean; error?: string }> {
   try {
     const client = getSupabase();
@@ -215,7 +251,7 @@ export async function setCompetitionStartTime(): Promise<{ ok: boolean; error?: 
   }
 }
 
-/** Clear competition start time (admin reset). */
+/** Clear competition start time from client (fallback when backend is unavailable). */
 export async function clearCompetitionStartTime(): Promise<{ ok: boolean; error?: string }> {
   try {
     const client = getSupabase();

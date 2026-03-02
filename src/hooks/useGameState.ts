@@ -3,14 +3,18 @@ import { challenges as initialChallenges, Challenge } from "@/data/challenges";
 import {
   fetchChallengesFromSupabase,
   fetchCompetitionConfig,
+  callCompetitionStartBackend,
+  callCompetitionResetBackend,
   setCompetitionStartTime,
   clearCompetitionStartTime,
   upsertLeaderboardEntry,
   getLeaderboardUsername,
 } from "@/lib/api";
+import type { CompetitionConfig } from "@/lib/api";
+import { getSupabase, isSupabaseConfigured } from "@/lib/supabase";
 
 export const COMPETITION_DURATION = 60 * 60 * 1000; // 1 hour (fallback when config not available)
-const SHARED_TIMER_POLL_MS = 30_000; // sync start time from server every 30s
+const SHARED_TIMER_POLL_MS = 5_000; // fallback poll every 5s when Realtime not available
 
 function mergeChallengesWithSaved(
   source: Challenge[],
@@ -64,7 +68,8 @@ export function useGameState() {
   // Sync start time (and duration) from shared config so all clients see the same timer
   useEffect(() => {
     let cancelled = false;
-    const apply = (config: Awaited<ReturnType<typeof fetchCompetitionConfig>>) => {
+
+    const apply = (config: CompetitionConfig, fromRealtime = false) => {
       if (cancelled) return;
       const d = (config.duration_seconds || 3600) * 1000;
       setDurationMs(d);
@@ -72,13 +77,54 @@ export function useGameState() {
         const serverStart = new Date(config.started_at).getTime();
         setStartTime(serverStart);
         localStorage.setItem("ctf_start_time", String(serverStart));
+      } else if (fromRealtime) {
+        setStartTime(null);
+        localStorage.removeItem("ctf_start_time");
       }
     };
+
+    // Initial fetch + periodic poll (fallback when Realtime is unavailable)
     fetchCompetitionConfig().then(apply);
     const interval = setInterval(() => fetchCompetitionConfig().then(apply), SHARED_TIMER_POLL_MS);
+
+    // Refetch when user returns to the tab so they see the timer immediately
+    const onVisibility = () => {
+      if (document.visibilityState === "visible") fetchCompetitionConfig().then(apply);
+    };
+    document.addEventListener("visibilitychange", onVisibility);
+
+    // Live updates: when admin starts/resets timer, everyone gets it instantly
+    let channel: ReturnType<ReturnType<typeof getSupabase>["channel"]> | null = null;
+    let supabaseClient: ReturnType<typeof getSupabase> | null = null;
+    if (isSupabaseConfigured()) {
+      try {
+        supabaseClient = getSupabase();
+        channel = supabaseClient
+          .channel("competition-config-live")
+          .on(
+            "postgres_changes",
+            { event: "*", schema: "public", table: "competition_config" },
+            (payload: { new?: { started_at: string | null; duration_seconds?: number }; old?: unknown }) => {
+              if (cancelled || !payload.new) return;
+              const row = payload.new;
+              const started_at = row.started_at ?? null;
+              const duration_seconds = Number(row.duration_seconds) || 3600;
+              apply({ started_at, duration_seconds }, true);
+            }
+          )
+          .subscribe();
+      } catch {
+        // Supabase not configured or Realtime not enabled for table; polling is enough
+      }
+    }
+
     return () => {
       cancelled = true;
       clearInterval(interval);
+      document.removeEventListener("visibilitychange", onVisibility);
+      if (supabaseClient && channel) {
+        supabaseClient.removeChannel(channel);
+      }
     };
   }, []);
 
@@ -104,16 +150,17 @@ export function useGameState() {
   };
 
   const startTimer = useCallback(async () => {
-    const res = await setCompetitionStartTime();
-    const now = Date.now();
-    if (res.ok) {
-      localStorage.setItem("ctf_start_time", String(now));
-      setStartTime(now);
-    } else {
-      // Fallback: still set local so admin sees timer when Supabase is unavailable
-      localStorage.setItem("ctf_start_time", String(now));
-      setStartTime(now);
+    // Prefer backend so server sets authoritative time and all clients get it reliably
+    let res = await callCompetitionStartBackend();
+    if (!res.ok) {
+      res = await setCompetitionStartTime();
     }
+    const now = Date.now();
+    const serverStartMs = res.ok && "started_at" in res && res.started_at
+      ? new Date(res.started_at).getTime()
+      : now;
+    localStorage.setItem("ctf_start_time", String(serverStartMs));
+    setStartTime(serverStartMs);
   }, []);
 
   const getElapsed = useCallback(() => {
@@ -205,7 +252,10 @@ export function useGameState() {
   );
 
   const resetGame = useCallback(async () => {
-    await clearCompetitionStartTime();
+    let res = await callCompetitionResetBackend();
+    if (!res.ok) {
+      await clearCompetitionStartTime();
+    }
     localStorage.removeItem("ctf_start_time");
     localStorage.removeItem("ctf_challenges");
     window.location.reload();

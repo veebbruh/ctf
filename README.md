@@ -154,9 +154,16 @@ No profiles or teams table yet; add those when you have data to differentiate te
 
 - **Build command:** `npm run build`  
 - **Publish directory:** `dist`  
+- **Functions:** `netlify/functions` (timer start/reset backend)  
 - **Environment variables (required for team login & leaderboard):** In Netlify → Site → Site configuration → Environment variables, add:
   - `VITE_SUPABASE_URL` = your Supabase project URL  
   - `VITE_SUPABASE_ANON_KEY` = your Supabase anon key  
+
+- **Timer backend (so the clock starts for everyone when admin clicks “Initialize System Timer”):** Add these **server-side** variables (not prefixed with `VITE_`; they are used only by Netlify Functions):
+  - `SUPABASE_URL` = same as your Supabase project URL (e.g. `https://xxxx.supabase.co`)  
+  - `SUPABASE_SERVICE_ROLE_KEY` = your Supabase **service role** key (Dashboard → Project Settings → API). Keep this secret; it bypasses RLS.
+
+If the timer backend env vars are missing, the admin can still start the timer from the client (Supabase anon update); the backend is preferred so the server sets the authoritative time and all participants see the same countdown.
 
 Redeploy after adding or changing variables so they are available at build time. Without these, the app runs but team login and leaderboard sync show a “temporarily unavailable” message.
 
