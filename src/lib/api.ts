@@ -39,17 +39,24 @@ export function getLeaderboardUsername(): string {
   return getCurrentTeam() ?? "You";
 }
 
-/** Verify team credentials against Supabase team_credentials. Returns team_username on success. */
+/** Escape % and _ for use in Supabase .ilike() so they are treated as literals. */
+function escapeIlike(value: string): string {
+  return value.replace(/\\/g, "\\\\").replace(/%/g, "\\%").replace(/_/g, "\\_");
+}
+
+/** Verify team credentials against Supabase team_credentials. Returns team_username on success. Team name is matched case-insensitively. */
 export async function verifyTeamLogin(
   teamUsername: string,
   password: string
 ): Promise<{ ok: true; team_username: string } | { ok: false; error: string }> {
   try {
     const client = getSupabase();
+    const trimmed = teamUsername.trim();
+    if (!trimmed) return { ok: false, error: "Enter team name and password." };
     const { data, error } = await client
       .from("team_credentials")
       .select("team_username, password")
-      .eq("team_username", teamUsername.trim())
+      .ilike("team_username", escapeIlike(trimmed))
       .maybeSingle();
 
     if (error) return { ok: false, error: error.message };

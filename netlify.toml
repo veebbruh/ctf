@@ -1,0 +1,9 @@
+# Netlify build config for Geminathon-CTF (Vite SPA)
+[build]
+  command = "npm run build"
+  publish = "dist"
+
+# Required for team login & leaderboard: set in Netlify UI → Site configuration → Environment variables
+#   VITE_SUPABASE_URL = your Supabase project URL (e.g. https://xxxx.supabase.co)
+#   VITE_SUPABASE_ANON_KEY = your Supabase anon/public key
+# The build script writes these into .env before Vite runs so they are inlined. Redeploy after adding/changing variables.
