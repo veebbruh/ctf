@@ -9,6 +9,7 @@ import {
   clearCurrentTeam,
   verifyTeamLogin,
 } from "@/lib/api";
+import { isSupabaseConfigured } from "@/lib/supabase";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -94,6 +95,11 @@ const Profile = () => {
               <Shield className="w-5 h-5 text-primary" />
               <h2 className="text-sm font-bold uppercase tracking-widest">Team login</h2>
             </div>
+            {!isSupabaseConfigured() && (
+              <div className="mb-6 p-4 border border-amber-500/40 bg-amber-500/10 text-amber-200 text-[11px] tracking-wide">
+                Team login is not available right now. The event server may not be configured yet—please try again later or contact the organizer.
+              </div>
+            )}
             <p className="text-[11px] tracking-wide text-primary/70 mb-6">
               Use your team name and password from Geminathon 26 registration. Once logged in, your score will appear under your team name on the leaderboard.
             </p>
@@ -108,7 +114,7 @@ const Profile = () => {
                   value={teamUsername}
                   onChange={(e) => setTeamUsername(e.target.value)}
                   placeholder="e.g. Error 404"
-                  className="mt-1 bg-primary/5 border-primary/20 text-xs font-mono uppercase"
+                  className="mt-1 bg-primary/5 border-primary/20 text-xs normal-case"
                   autoComplete="username"
                 />
               </div>
@@ -131,8 +137,8 @@ const Profile = () => {
               )}
               <Button
                 type="submit"
-                disabled={loading}
-                className="w-full bg-primary text-black hover:bg-white font-bold uppercase tracking-widest text-xs"
+                disabled={loading || !isSupabaseConfigured()}
+                className="w-full bg-primary text-black hover:bg-white font-bold uppercase tracking-widest text-xs disabled:opacity-50 disabled:pointer-events-none"
               >
                 <LogIn className="w-4 h-4 mr-2" />
                 {loading ? "Checking…" : "Log in"}

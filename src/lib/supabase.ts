@@ -9,6 +9,11 @@ if (supabaseUrl && supabaseAnonKey) {
   supabase = createClient(supabaseUrl, supabaseAnonKey);
 }
 
+/** True if Supabase env vars are set and client is available. */
+export function isSupabaseConfigured(): boolean {
+  return supabase != null;
+}
+
 /** Get Supabase client. Throws if env vars are missing. */
 export function getSupabase(): SupabaseClient {
   if (!supabase) {

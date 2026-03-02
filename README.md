@@ -150,7 +150,17 @@ No profiles or teams table yet; add those when you have data to differentiate te
 2. Build: `npm run build`.
 3. Serve the `dist/` folder (static hosting or your preferred method).
 
-For custom domains and CI/CD, follow your host’s documentation (e.g. Vercel, Netlify, or Lovable if you use it).
+### Netlify
+
+- **Build command:** `npm run build`  
+- **Publish directory:** `dist`  
+- **Environment variables (required for team login & leaderboard):** In Netlify → Site → Site configuration → Environment variables, add:
+  - `VITE_SUPABASE_URL` = your Supabase project URL  
+  - `VITE_SUPABASE_ANON_KEY` = your Supabase anon key  
+
+Redeploy after adding or changing variables so they are available at build time. Without these, the app runs but team login and leaderboard sync show a “temporarily unavailable” message.
+
+For custom domains and CI/CD, follow your host’s documentation.
 
 ## License
 

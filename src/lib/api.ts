@@ -59,7 +59,13 @@ export async function verifyTeamLogin(
     return { ok: true, team_username: data.team_username };
   } catch (e) {
     const message = e instanceof Error ? e.message : String(e);
-    return { ok: false, error: message };
+    const isConfigError = message.toLowerCase().includes("supabase") && message.toLowerCase().includes("configured");
+    return {
+      ok: false,
+      error: isConfigError
+        ? "Team login is temporarily unavailable. The event server may not be configured yet—please try again later or contact the organizer."
+        : message,
+    };
   }
 }
 
