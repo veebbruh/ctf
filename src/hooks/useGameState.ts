@@ -15,6 +15,8 @@ import { getSupabase, isSupabaseConfigured } from "@/lib/supabase";
 
 export const COMPETITION_DURATION = 60 * 60 * 1000; // 1 hour (fallback when config not available)
 const SHARED_TIMER_POLL_MS = 5_000; // fallback poll every 5s when Realtime not available
+const BURST_POLL_MS = 2_000; // poll every 2s for the first 20s so others get start time quickly
+const BURST_DURATION_MS = 20_000;
 
 function mergeChallengesWithSaved(
   source: Challenge[],
@@ -120,6 +122,8 @@ export function useGameState() {
 
     return () => {
       cancelled = true;
+      clearTimeout(stopBurst);
+      clearInterval(burstInterval);
       clearInterval(interval);
       document.removeEventListener("visibilitychange", onVisibility);
       if (supabaseClient && channel) {

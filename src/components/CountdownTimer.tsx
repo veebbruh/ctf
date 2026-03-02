@@ -8,11 +8,11 @@ interface CountdownTimerProps {
 }
 
 const CountdownTimer = ({ targetTime, compact = false, onComplete }: CountdownTimerProps) => {
-  const [timeLeft, setTimeLeft] = useState(() => (targetTime ? Math.max(0, targetTime - Date.now()) : 3600000));
+  const [timeLeft, setTimeLeft] = useState(() => (targetTime ? Math.max(0, targetTime - Date.now()) : 0));
 
   useEffect(() => {
     if (!targetTime) {
-      setTimeLeft(3600000); // Reset to 1 hour if no target time
+      setTimeLeft(0);
       return;
     }
 
@@ -26,6 +26,22 @@ const CountdownTimer = ({ targetTime, compact = false, onComplete }: CountdownTi
     }, 1000);
     return () => clearInterval(interval);
   }, [targetTime, onComplete]);
+
+  // Competition not started yet — show clear state so users know timer isn’t live
+  if (!targetTime) {
+    if (compact) {
+      return (
+        <span className="font-mono text-lg tracking-widest opacity-70" title="Waiting for admin to start">
+          —:——:——
+        </span>
+      );
+    }
+    return (
+      <div className="font-mono text-lg tracking-widest opacity-70" title="Waiting for admin to start">
+        —:——:——
+      </div>
+    );
+  }
 
   const hours = Math.floor(timeLeft / 3600000);
   const minutes = Math.floor((timeLeft % 3600000) / 60000);
