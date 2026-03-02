@@ -171,12 +171,12 @@ const ChallengePage = () => {
                     className="w-full bg-primary text-black font-black uppercase tracking-[0.2em] py-5 text-xs hover:bg-white transition-colors flex items-center justify-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {!isStarted ? <Lock className="w-4 h-4" /> : <Send className="w-4 h-4" />}
-                    {!isStarted ? "Waiting to Start" : "Finalize Capture"}
+                    {!isStarted ? "Competition not started yet" : "Finalize Capture"}
                   </button>
 
                   {!isStarted && (
                     <div className="p-4 border border-dashed border-primary/20 text-[10px] font-bold tracking-widest uppercase text-center text-primary/60">
-                      System Offline: Initialize Timer in Dashboard to enable capture
+                      The organizer will start the timer from the dashboard. When it starts, the countdown will appear at the top and you can submit flags here.
                     </div>
                   )}
 
